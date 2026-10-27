@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Space Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+/* Layout: a facilities control sheet on drafting vellum. Steps run down the page; the floor plan and score chart ride alongside the device list on wide screens. Amber = what gets sensed, cobalt = what the system does, red = intrusiveness. */
+:root {
+  --paper: #EDF0EB;
+  --panel: #F8F9F6;
+  --ink: #17201C;
+  --ink-2: #4B5752;
+  --rule: #C6CDC7;
+  --plan: #33433C;
+  --sense: #A86200;
+  --act: #2645C4;
+  --risk: #B0281F;
+  --ok: #2B7A4B;
+  --ok-wash: rgba(43,122,75,.10);
+  --act-wash: rgba(38,69,196,.08);
+  --risk-wash: rgba(176,40,31,.08);
+  --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111614; --panel: #19201D; --ink: #E5EBE7; --ink-2: #9EAAA4; --rule: #2F3934; --plan: #A9B8B0;
+    --sense: #E3A445; --act: #93A6FF; --risk: #F08A80; --ok: #72C797;
+    --ok-wash: rgba(114,199,151,.12); --act-wash: rgba(147,166,255,.10); --risk-wash: rgba(240,138,128,.10);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111614; --panel: #19201D; --ink: #E5EBE7; --ink-2: #9EAAA4; --rule: #2F3934; --plan: #A9B8B0;
+  --sense: #E3A445; --act: #93A6FF; --risk: #F08A80; --ok: #72C797;
+  --ok-wash: rgba(114,199,151,.12); --act-wash: rgba(147,166,255,.10); --risk-wash: rgba(240,138,128,.10);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 800; font-stretch: 112%; line-height: 1.02; letter-spacing: -.01em; }
+h2 { font-size: 1.35rem; font-weight: 700; font-stretch: 100%; }
+h3 { font-size: 1.02rem; font-weight: 700; font-stretch: 96%; }
+p { margin: 0; }
+.eyebrow { font-family: var(--f-mono); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.lede { max-width: 62ch; font-size: 1.08rem; color: var(--ink-2); }
+header { display: grid; gap: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: .85rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+.step { display: grid; gap: 18px; }
+.step-head { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 8px 14px; }
+.step-no { font-family: var(--f-mono); font-size: .8rem; font-weight: 500; border: 1.5px solid var(--ink); padding: 1px 7px; border-radius: 3px; }
+.step-head p { color: var(--ink-2); grid-column: 1 / -1; max-width: 70ch; }
+
+/* Scenario picker */
+.spaces { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.space { position: relative; }
+.space input { position: absolute; opacity: 0; pointer-events: none; }
+.space label {
+  display: grid; gap: 6px; height: 100%; cursor: pointer;
+  background: var(--panel); border: 1.5px solid var(--rule); border-radius: 6px; padding: 14px 16px;
+}
+.space label:hover { border-color: var(--ink-2); }
+.space input:checked + label { border-color: var(--act); box-shadow: inset 0 0 0 1px var(--act); background: var(--act-wash); }
+.space input:focus-visible + label { outline: 2px solid var(--act); outline-offset: 2px; }
+.space .room { font-family: var(--f-mono); font-size: .75rem; color: var(--ink-2); }
+.space .goal { font-size: .9rem; color: var(--ink-2); }
+
+/* Build area */
+.build { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 900px) { .build { grid-template-columns: minmax(0, 1fr); } }
+.side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: grid; gap: 16px; }
+@media (max-width: 900px) { .side { position: static; order: -1; } }
+.sheet { background: var(--panel); border: 1.5px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.sheet-title { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sheet-title .eyebrow { font-size: .7rem; }
+
+.banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .88rem; background: var(--act-wash); border: 1px dashed var(--act); border-radius: 6px; padding: 8px 12px; }
+.banner[hidden] { display: none !important; }
+
+.devices { display: grid; gap: 10px; }
+.dev {
+  background: var(--panel); border: 1.5px solid var(--rule); border-radius: 6px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; padding: 12px 14px;
+}
+.dev.on { border-color: var(--ink); }
+.dev-toggle {
+  grid-row: span 3; align-self: start; width: 44px; height: 44px; border-radius: 50%;
+  border: 1.5px solid var(--ink-2); background: transparent; color: var(--ink);
+  font-family: var(--f-mono); font-size: .72rem; font-weight: 500; cursor: pointer;
+}
+.dev-toggle:hover { border-color: var(--ink); }
+.dev-toggle:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--act); outline-offset: 2px; }
+.dev.on .dev-toggle { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.dev.hi .dev-toggle { border-color: var(--risk); }
+.dev.on.hi .dev-toggle { background: var(--risk); border-color: var(--risk); color: var(--panel); }
+.dev-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.chip { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; }
+.fit { font-family: var(--f-mono); font-size: .72rem; color: var(--ink-2); margin-left: auto; white-space: nowrap; }
+.fit b { color: var(--act); font-weight: 500; letter-spacing: .1em; }
+.dev-line { font-size: .86rem; color: var(--ink-2); }
+.dev-line strong { font-weight: 600; }
+.dev-line .s { color: var(--sense); }
+.dev-line .a { color: var(--act); }
+.gov { grid-column: 2; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 10px; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--rule); }
+.gov[hidden] { display: none !important; }
+.gov label { display: grid; gap: 3px; font-size: .72rem; font-family: var(--f-mono); color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+.gov select { font-family: var(--f-body); font-size: .86rem; padding: 5px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); color: var(--ink); text-transform: none; letter-spacing: 0; }
+.nopd { grid-column: 2; font-size: .8rem; color: var(--ok); margin-top: 6px; }
+.nopd[hidden] { display: none !important; }
+
+/* Floor plan */
+.plan-box { overflow-x: auto; }
+#plan { width: 100%; height: auto; display: block; min-width: 300px; }
+#plan .wall { fill: none; stroke: var(--plan); stroke-width: 3; }
+#plan .thin { fill: none; stroke: var(--plan); stroke-width: 1; }
+#plan .furn { fill: var(--paper); stroke: var(--plan); stroke-width: 1; }
+#plan .lbl { fill: var(--ink-2); font-family: var(--f-mono); font-size: 9px; }
+#plan .node { fill: var(--panel); stroke: var(--ink); stroke-width: 1.5; }
+#plan .hi .node { stroke: var(--risk); stroke-width: 2; }
+#plan .code { fill: var(--ink); font-family: var(--f-mono); font-size: 8.5px; font-weight: 500; text-anchor: middle; dominant-baseline: central; }
+#plan .pulse { fill: none; stroke: var(--act); stroke-width: 2; opacity: 0; }
+#plan .fired .node { stroke: var(--act); stroke-width: 2.5; fill: var(--act-wash); }
+#plan .fired .pulse { animation: ping 1.4s ease-out 2; }
+@keyframes ping { 0% { r: 12; opacity: .9; } 100% { r: 30; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #plan .fired .pulse { animation: none; } }
+.plan-empty { font-size: .82rem; color: var(--ink-2); }
+
+/* Score chart */
+.scores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.readout { border: 1px solid var(--rule); border-radius: 4px; padding: 8px 10px; display: grid; gap: 2px; }
+.readout .n { font-family: var(--f-display); font-weight: 800; font-size: 1.8rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.readout.v .n { color: var(--act); }
+.readout.i .n { color: var(--risk); }
+.readout .k { font-family: var(--f-mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); }
+#chart { width: 100%; height: auto; display: block; }
+#chart .ax { stroke: var(--ink-2); stroke-width: 1; }
+#chart .grid { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 3 3; }
+#chart .tk { fill: var(--ink-2); font-family: var(--f-mono); font-size: 9px; }
+#chart .q { fill: var(--ink-2); font-family: var(--f-body); font-size: 10px; font-weight: 600; }
+#chart .q.good { fill: var(--ok); }
+#chart .target { fill: var(--ok-wash); }
+#chart .danger { fill: var(--risk-wash); }
+#dot { transition: transform .45s cubic-bezier(.3,.7,.3,1); }
+@media (prefers-reduced-motion: reduce) { #dot { transition: none; } }
+#dot circle { fill: var(--act); stroke: var(--panel); stroke-width: 2; }
+#dot text { fill: var(--ink); font-family: var(--f-mono); font-size: 9px; font-weight: 500; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
+.verdict { font-size: .9rem; }
+.verdict b { font-family: var(--f-display); font-weight: 700; font-size: 1rem; }
+
+/* Events */
+.events { display: flex; flex-wrap: wrap; gap: 8px; }
+.ev-btn {
+  font-family: var(--f-body); font-size: .9rem; font-weight: 500; cursor: pointer;
+  padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--ink); background: var(--panel); color: var(--ink);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.ev-btn:hover { background: var(--act-wash); }
+.ev-btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.ev-btn .ck { font-family: var(--f-mono); font-size: .72rem; color: var(--ok); }
+.ev-btn[aria-pressed="true"] .ck { color: var(--panel); }
+.ev-desc { font-size: .95rem; }
+.ev-desc b { font-family: var(--f-display); }
+.twin { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 760px) { .twin { grid-template-columns: minmax(0, 1fr); } }
+.log { font-family: var(--f-mono); font-size: .8rem; line-height: 1.5; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px; display: grid; gap: 8px; min-height: 120px; align-content: start; overflow-wrap: anywhere; }
+.log .row { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 8px; }
+.log .t { color: var(--ink-2); }
+.log .c { color: var(--sense); font-weight: 500; }
+.log .who { grid-column: 3; color: var(--ink-2); font-size: .74rem; }
+.felt { display: grid; gap: 8px; align-content: start; }
+.felt .item { border-left: 3px solid var(--act); padding: 2px 0 2px 10px; font-size: .9rem; }
+.felt .item small { display: block; font-family: var(--f-mono); font-size: .7rem; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+.quiet { color: var(--ink-2); font-size: .88rem; }
+
+/* Cases */
+.cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.case { border: 1.5px solid var(--risk); border-radius: 6px; padding: 14px 16px; background: var(--risk-wash); display: grid; gap: 8px; align-content: start; }
+.case .when { font-family: var(--f-mono); font-size: .72rem; color: var(--risk); letter-spacing: .04em; text-transform: uppercase; }
+.case p { font-size: .88rem; }
+.case a { color: var(--ink); font-size: .82rem; }
+
+/* Reflection */
+textarea { width: 100%; min-height: 130px; font-family: var(--f-body); font-size: .95rem; line-height: 1.5; padding: 10px 12px; border: 1.5px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); resize: vertical; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { font-family: var(--f-body); font-weight: 600; font-size: .92rem; cursor: pointer; padding: 10px 18px; border-radius: 4px; border: 1.5px solid var(--ink); background: var(--ink); color: var(--panel); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.small { padding: 5px 10px; font-size: .82rem; font-weight: 500; }
+.status { font-size: .86rem; color: var(--ok); }
+pre#summary { font-family: var(--f-mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 12px 14px; margin: 0; max-height: 360px; overflow: auto; }
+details { border-top: 1px solid var(--rule); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 600; }
+details .how { display: grid; gap: 8px; margin-top: 10px; max-width: 75ch; font-size: .9rem; color: var(--ink-2); }
+details table { border-collapse: collapse; font-size: .82rem; }
+details td, details th { border: 1px solid var(--rule); padding: 4px 8px; text-align: left; }
+details th { font-family: var(--f-mono); font-weight: 500; font-size: .72rem; text-transform: uppercase; }
+.tbl { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Internet of Things module · Interactive activity</span>
+    <h1>Smart Space Builder</h1>
+    <p class="lede">Pick a learning space, wire it with connected devices, and decide what happens to the data. Then run five ordinary moments and watch each one twice: once as the system logs it, once as the learner lives it.</p>
+    <div class="legend" aria-label="Color key">
+      <span><i class="sw" style="background:var(--sense)"></i>What gets sensed</span>
+      <span><i class="sw" style="background:var(--act)"></i>What the system does</span>
+      <span><i class="sw" style="background:var(--risk)"></i>Intrusiveness</span>
+    </div>
+  </header>
+
+  <section class="step" aria-labelledby="s1">
+    <div class="step-head">
+      <span class="step-no">Step 1</span><h2 id="s1">Choose a space</h2>
+      <p>Each space has a goal. Every device you add should serve that goal, or you should be able to say why it's there.</p>
+    </div>
+    <div class="spaces" id="spaces" role="radiogroup" aria-label="Learning spaces"></div>
+  </section>
+
+  <section class="step" aria-labelledby="s2">
+    <div class="step-head">
+      <span class="step-no">Step 2</span><h2 id="s2">Install devices and set the data rules</h2>
+      <p>Tap a device to install it. For anything that collects personal data, decide whether it's tied to a name, whether learners can opt out, how long it's kept, and who can see it. Defaults are set the way many vendors ship them.</p>
+    </div>
+    <div class="banner" id="exampleBanner" hidden>
+      <span>An example setup is loaded so you can see how the tool works.</span>
+      <button class="btn ghost small" id="clearExample" type="button">Clear and start my own</button>
+    </div>
+    <div class="build">
+      <div class="devices" id="devices"></div>
+      <aside class="side" aria-label="Your design">
+        <div class="sheet">
+          <div class="sheet-title"><h3 id="planTitle">Room plan</h3><span class="eyebrow" id="planRoom"></span></div>
+          <div class="plan-box">
+            <svg id="plan" viewBox="0 0 420 296" role="img" aria-labelledby="planDesc">
+              <desc id="planDesc">Floor plan of the selected room showing installed devices.</desc>
+              <g id="planBase"></g>
+              <g id="planDevices"></g>
+            </svg>
+          </div>
+          <p class="plan-empty" id="planEmpty">No devices installed. The room knows nothing.</p>
+        </div>
+        <div class="sheet">
+          <div class="scores">
+            <div class="readout v"><span class="k">Learning value</span><span class="n" id="vScore">0</span></div>
+            <div class="readout i"><span class="k">Intrusiveness</span><span class="n" id="iScore">0</span></div>
+          </div>
+          <svg id="chart" viewBox="0 0 300 232" role="img" aria-labelledby="chartDesc">
+            <desc id="chartDesc">Scatter position of your design: learning value on the horizontal axis, intrusiveness on the vertical axis.</desc>
+            <rect class="danger" x="165" y="8" width="125" height="96"></rect>
+            <rect class="target" x="165" y="104" width="125" height="96"></rect>
+            <line class="grid" x1="165" y1="8" x2="165" y2="200"></line>
+            <line class="grid" x1="40" y1="104" x2="290" y2="104"></line>
+            <line class="ax" x1="40" y1="200" x2="290" y2="200"></line>
+            <line class="ax" x1="40" y1="8" x2="40" y2="200"></line>
+            <text class="tk" x="40" y="214" text-anchor="middle">0</text>
+            <text class="tk" x="165" y="214" text-anchor="middle">50</text>
+            <text class="tk" x="290" y="214" text-anchor="end">100</text>
+            <text class="tk" x="34" y="203" text-anchor="end">0</text>
+            <text class="tk" x="34" y="107" text-anchor="end">50</text>
+            <text class="tk" x="34" y="14" text-anchor="end">100</text>
+            <text class="tk" x="165" y="228" text-anchor="middle">Learning value →</text>
+            <text class="tk" x="12" y="104" text-anchor="middle" transform="rotate(-90 12 104)">Intrusiveness →</text>
+            <text class="q" x="102" y="24" text-anchor="middle">Surveillance,</text>
+            <text class="q" x="102" y="36" text-anchor="middle">little payoff</text>
+            <text class="q" x="228" y="24" text-anchor="middle">Powerful and</text>
+            <text class="q" x="228" y="36" text-anchor="middle">invasive</text>
+            <text class="q" x="102" y="182" text-anchor="middle">Low stakes,</text>
+            <text class="q" x="102" y="194" text-anchor="middle">low payoff</text>
+            <text class="q good" x="228" y="182" text-anchor="middle">Useful and</text>
+            <text class="q good" x="228" y="194" text-anchor="middle">respectful</text>
+            <g id="dot" style="transform: translate(40px, 200px)"><circle r="7"></circle><text x="10" y="-8">you</text></g>
+          </svg>
+          <p class="verdict" id="verdict"></p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="s3">
+    <div class="step-head">
+      <span class="step-no">Step 3</span><h2 id="s3">Run a moment</h2>
+      <p>Run all five. Read the right-hand column carefully: it's what the person in the room actually experiences. Change your devices or data rules and run a moment again to see what shifts.</p>
+    </div>
+    <div class="events" id="events"></div>
+    <p class="ev-desc" id="evDesc"></p>
+    <div class="twin">
+      <div class="sheet">
+        <div class="sheet-title"><h3>System log</h3><span class="eyebrow">sense → analyze → act</span></div>
+        <div class="log" id="log" aria-live="polite"><span class="quiet">Pick a moment above.</span></div>
+      </div>
+      <div class="sheet">
+        <div class="sheet-title"><h3>What the learner notices</h3></div>
+        <div class="felt" id="felt"><span class="quiet">Pick a moment above.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="s4" id="casesSection" hidden>
+    <div class="step-head">
+      <span class="step-no">Check</span><h2 id="s4">This has already happened</h2>
+      <p>Your design includes technology that real schools have tried. Here's how it went.</p>
+    </div>
+    <div class="cases" id="cases"></div>
+  </section>
+
+  <section class="step" aria-labelledby="s5">
+    <div class="step-head">
+      <span class="step-no">Step 4</span><h2 id="s5">Where did you draw the line?</h2>
+      <p>In 3 to 5 sentences: which device did you leave out (or remove) and why, and which data rule would you refuse to give up? Then copy your summary and paste it into the module discussion.</p>
+    </div>
+    <label for="reflect" class="eyebrow">Your reasoning</label>
+    <textarea id="reflect" placeholder="I left out the attention camera because..."></textarea>
+    <div class="actions">
+      <button class="btn" id="copyBtn" type="button">Copy design summary</button>
+      <button class="btn ghost" id="resetBtn" type="button">Remove all devices</button>
+      <span class="status" id="copyStatus" role="status"></span>
+    </div>
+    <pre id="summary" tabindex="0" aria-label="Design summary text"></pre>
+    <details>
+      <summary>How the scores work (and why you should argue with them)</summary>
+      <div class="how">
+        <p>Learning value adds up how well each device fits the space's goal (0 to 3, shown on each device), with diminishing returns: the tenth sensor adds less than the second. Devices that personalize instruction lose most of their value if you make their data anonymous, and opt-in consent trims value slightly because fewer people take part.</p>
+        <p>Intrusiveness starts from how sensitive the data is (room air is low; faces and brainwaves are high), then scales by your four data rules. Tying data to names, making it mandatory, keeping it forever, and letting the institution see it all push the score up.</p>
+        <p>These weights are one instructor's judgment, set on purpose to be debatable. If you think a device is scored wrong, say so in your discussion post and make the case.</p>
+        <div class="tbl"><table id="weights"></table></div>
+      </div>
+    </details>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SPACES = [
+    { id: "onboard", name: "Corporate onboarding room", room: "Training Room 204", who: "new hire", whoPl: "new hires",
+      goal: "Get 24 new hires through two days of systems and compliance training, and know who finished what." },
+    { id: "simlab", name: "Nursing simulation lab", room: "Sim Lab B", who: "nursing student", whoPl: "nursing students",
+      goal: "Help students perform under stress during code-blue simulations, then debrief what happened." },
+    { id: "k12", name: "7th-grade science classroom", room: "Room 118", who: "student", whoPl: "students",
+      goal: "Keep 28 students engaged and safe during hands-on labs." },
+    { id: "mfg", name: "Manufacturing floor", room: "Line 3", who: "technician", whoPl: "technicians",
+      goal: "Cut errors during equipment changeovers with support at the moment of need." }
+  ];
+
+  var DEVICES = [
+    { id: "co2", code: "CO₂", name: "Air quality sensor", cat: "Environment", senses: "CO₂ in ppm, temperature, humidity", does: "Raises ventilation and suggests a break above 1,000 ppm", sens: 1, personal: false, x: 392, y: 96 },
+    { id: "lights", code: "LT", name: "Smart lighting and blinds", cat: "Environment", senses: "Daylight level, room schedule", does: "Sets lighting for lecture, video, or simulation; switches to emergency lighting", sens: 0.5, personal: false, x: 120, y: 30 },
+    { id: "occ", code: "OCC", name: "Occupancy counter", cat: "Presence", senses: "Head count only, no identities", does: "Flags over-capacity rooms; confirms a room is empty in an emergency", sens: 1.5, personal: false, x: 48, y: 48 },
+    { id: "noise", code: "dB", name: "Sound level meter", cat: "Environment", senses: "Decibel level only, no recording", does: "Signals the facilitator when group work gets too loud", sens: 1.5, personal: false, x: 372, y: 48 },
+    { id: "rfid", code: "RF", name: "RFID or Bluetooth ID badge", cat: "Location", senses: "Who is in which room, and when", does: "Takes attendance automatically; produces emergency headcounts", sens: 3.5, personal: true, needsId: true, caseId: "northside", x: 112, y: 262 },
+    { id: "tag", code: "TAG", name: "Equipment asset tags", cat: "Infrastructure", senses: "Where kits and devices are, who checked them out", does: "Tracks equipment and schedules maintenance", sens: 1.5, personal: true, needsId: false, x: 352, y: 196 },
+    { id: "hr", code: "HR", name: "Smartwatch (heart rate, HRV)", cat: "Body", senses: "Heart rate, heart-rate variability, movement", does: "Detects stress spikes and adjusts scenario difficulty", sens: 4, personal: true, needsId: true, x: 150, y: 166 },
+    { id: "eeg", code: "EEG", name: "EEG attention headband", cat: "Body", senses: "Brainwave activity, scored as “attention”", does: "Ranks each learner's focus on an instructor dashboard", sens: 5, personal: true, needsId: true, caseId: "brainco", x: 280, y: 166 },
+    { id: "eye", code: "EYE", name: "Attention camera (gaze tracking)", cat: "Body", senses: "Where each face is looking, posture", does: "Produces an engagement score for each learner", sens: 4.5, personal: true, needsId: true, x: 300, y: 30 },
+    { id: "face", code: "FR", name: "Facial recognition at the door", cat: "Identity", senses: "Faces, matched to a roster or watchlist", does: "Takes attendance; alerts security to unknown visitors", sens: 5, personal: true, needsId: true, caseId: "lockport", x: 30, y: 214 },
+    { id: "lock", code: "LCK", name: "Smart locks and alert system", cat: "Infrastructure", senses: "Door state, badge entries, weather and emergency feeds", does: "Locks down or opens shelter routes; pushes alerts to phones", sens: 2, personal: true, needsId: false, x: 66, y: 280 },
+    { id: "ar", code: "AR", name: "NFC job-aid tags and tablet", cat: "Performance support", senses: "Which job aid gets opened, by whom, how often", does: "Shows step-by-step help for the exact equipment in front of you", sens: 2, personal: true, needsId: false, x: 392, y: 246 },
+    { id: "rsp", code: "RSP", name: "Response system (clickers, polls)", cat: "Performance data", senses: "Answers and response times", does: "Queues a review activity when someone falls behind", sens: 2.5, personal: true, needsId: true, x: 210, y: 96 },
+    { id: "mic", code: "MIC", name: "Smart speaker assistant", cat: "Audio", senses: "Voice commands; always listening for a wake word", does: "Sets timers, answers questions, gives hints out loud", sens: 4, personal: true, needsId: false, x: 230, y: 236 }
+  ];
+
+  // Fit of each device to each space's goal, 0-3
+  var FIT = {
+    onboard: { co2: 2, lights: 1, occ: 1, noise: 1, rfid: 2, tag: 1, hr: 0, eeg: 1, eye: 1, face: 1, lock: 1, ar: 1, rsp: 3, mic: 1 },
+    simlab:  { co2: 1, lights: 2, occ: 0, noise: 1, rfid: 1, tag: 2, hr: 3, eeg: 1, eye: 2, face: 0, lock: 1, ar: 2, rsp: 2, mic: 1 },
+    k12:     { co2: 2, lights: 1, occ: 1, noise: 2, rfid: 2, tag: 2, hr: 0, eeg: 1, eye: 1, face: 1, lock: 3, ar: 0, rsp: 3, mic: 1 },
+    mfg:     { co2: 1, lights: 0, occ: 1, noise: 1, rfid: 2, tag: 3, hr: 1, eeg: 0, eye: 1, face: 1, lock: 2, ar: 3, rsp: 0, mic: 2 }
+  };
+  var FIT_WORD = ["No clear fit", "Weak fit", "Good fit", "Strong fit"];
+
+  var GOV = {
+    ident: { label: "Tied to a name?", opts: [["named", "Yes, identifiable", 1, "tied to names"], ["agg", "No, room totals only", 0.2, "room totals only"]] },
+    consent: { label: "Participation", opts: [["mandatory", "Required", 1, "required"], ["optout", "Opt-out", 0.7, "opt-out"], ["optin", "Opt-in", 0.3, "opt-in"]] },
+    keep: { label: "Kept for", opts: [["session", "This session only", 0.2, "kept for the session"], ["term", "The term or program", 0.6, "kept for the term"], ["forever", "Indefinitely", 1, "kept indefinitely"]] },
+    access: { label: "Who sees it", opts: [["learner", "The learner only", 0.2, "seen by the learner only"], ["instructor", "Instructor or trainer", 0.6, "seen by the instructor"], ["institution", "Institution (HR, admin, security)", 1, "seen by the institution"]] }
+  };
+  var GOV_DEFAULT = { ident: "named", consent: "mandatory", keep: "term", access: "instructor" };
+
+  var CASES = {
+    northside: {
+      when: "San Antonio, Texas · 2012–13", title: "Northside ISD's RFID badges",
+      body: "The district required about 4,000 students at two schools to wear ID badges with RFID chips. The motive was mostly money: Texas funds districts by daily attendance, and students away from their seats were being counted absent. A student who refused the badge on religious grounds was told to transfer, and the dispute went to federal court. The district dropped the pilot in July 2013, citing bad publicity, the lawsuit, staff time, and community feedback. Attendance had risen half a percentage point.",
+      src: "https://www.tpr.org/education/2013-07-16/embattled-rfid-pilot-program-discontinued-at-northside-isd", srcName: "Texas Public Radio"
+    },
+    lockport: {
+      when: "Lockport, New York · 2020–23", title: "Facial recognition, then a statewide ban",
+      body: "A western New York district switched on a $1.4 million facial recognition system in January 2020, and parents sued with the NYCLU. In September 2023 the state education commissioner banned facial recognition in New York schools after a state IT report found the risks may outweigh the benefits, including higher false-positive rates for people of color, and that the technology “may only offer the appearance of safer schools.”",
+      src: "https://www.wskg.org/news/2023-09-28/new-york-bans-facial-recognition-in-schools-after-report-finds-risks-outweigh-potential-benefits", srcName: "WSKG"
+    },
+    brainco: {
+      when: "Hangzhou, China · 2019", title: "Attention headbands in a primary school",
+      body: "Students at Jiangnan Experimental School wore EEG headbands made by BrainCo, a Boston startup. A screen showed each child's concentration level in real time, and end-of-class reports named the three most focused students. At another school, lights on the headbands showed teachers who wasn't paying attention. Photos spread on Chinese social media and drew sharp criticism from parents and the public.",
+      src: "https://thechinaproject.com/2019/04/05/chinese-parents-want-students-to-wear-dystopian-brainwave-detecting-headbands/", srcName: "The China Project"
+    }
+  };
+
+  // Responses: sys = system log, lrn = learner experience. {who}, {room} are filled per space.
+  var EVENTS = [
+    { id: "stuck", label: "Someone gets stuck", time: [13, 22],
+      desc: "A {who} misses three steps in a row and goes quiet.",
+      r: {
+        hr: { sys: "Heart rate 118 bpm, HRV down 31% from baseline. Flagged “elevated stress.” Difficulty lowered one level.", lrn: "The task gets a little easier. Nobody tells you why." },
+        eeg: { sys: "Attention index 41/100. Moved to the “low focus” list on the instructor dashboard.", lrn: "Your headband light turns red. The people next to you can see it." },
+        eye: { sys: "Gaze off-task 38% of the last 5 minutes. Engagement score reduced to 2 of 5.", lrn: "Nothing you can see. The score shows up in a report later." },
+        rsp: { sys: "3 of the last 4 items incorrect. Review activity queued.", lrn: "A short review pops up before you move on." },
+        ar: { sys: "Job aid for this step opened 3 times in 4 minutes. Step flagged for redesign.", lrn: "You scan the tag again and the step-by-step overlay walks you through it." },
+        mic: { sys: "Captured: “I don't get this.” Hint delivered. Transcript stored.", lrn: "The speaker offers you a hint out loud, in front of everyone." },
+        noise: { sys: "Room level 38 dB, steady. No action.", lrn: "Nothing." }
+      } },
+    { id: "slump", label: "Late-afternoon slump", time: [14, 40],
+      desc: "It's 2:40 pm. {room} has been full since lunch.",
+      r: {
+        co2: { sys: "CO₂ 1,350 ppm (threshold 1,000). Ventilation raised; break prompt sent to facilitator.", lrn: "The air feels fresher, and the facilitator calls a five-minute break." },
+        lights: { sys: "Color temperature raised to 5000 K; blinds opened 40%.", lrn: "The room gets brighter." },
+        occ: { sys: "Head count 27 in a space rated for 24. Facilities notified.", lrn: "Someone from facilities pokes their head in." },
+        eye: { sys: "Room-wide engagement down 22% since 1:30 pm. Instructor alerted.", lrn: "The instructor suddenly switches activities." },
+        eeg: { sys: "Average attention index 47. Three lowest-scoring learners listed.", lrn: "Three people's names are on the instructor's screen. Yours might be one." },
+        hr: { sys: "Group resting heart rate trending down. No individual action.", lrn: "Nothing." },
+        rsp: { sys: "Response times up 40% versus the morning. Pace slowed.", lrn: "The next section moves a bit slower." }
+      } },
+    { id: "out", label: "Someone steps out", time: [10, 2],
+      desc: "A {who} leaves {room} for 12 minutes, then comes back.",
+      r: {
+        rfid: { sys: "Badge 5531 left {room} 10:02, seen at Restroom B 10:04, back 10:14. 12 min logged.", lrn: "Nothing at the time. It appears in an attendance report next week." },
+        face: { sys: "Re-entry matched to roster photo, confidence 0.93. Absence recorded.", lrn: "The door camera recognizes you on the way back in." },
+        occ: { sys: "Count changed 24 → 23 → 24.", lrn: "Nothing." },
+        lock: { sys: "Door opened 10:02 and 10:14 by badge 5531.", lrn: "You tap your badge to get back in." },
+        tag: { sys: "Laptop A-117 left the room with its checkout holder.", lrn: "Nothing, unless the laptop goes missing later." },
+        hr: { sys: "Step count +640 during the gap. Activity outside room logged.", lrn: "Your watch buzzes: “Nice walk!”" },
+        rsp: { sys: "Two polls missed. Marked absent for this segment.", lrn: "You see “absent” next to a segment you were mostly there for." },
+        mic: { sys: "No wake word detected.", lrn: "Nothing." }
+      } },
+    { id: "storm", label: "Tornado warning", time: [11, 18],
+      desc: "The National Weather Service issues a tornado warning for the county.",
+      r: {
+        lock: { sys: "NWS warning received. Doors set to shelter mode; alert pushed to every registered phone.", lrn: "Phones buzz at once. The hallway doors unlock toward the shelter route." },
+        rfid: { sys: "Shelter headcount: 23 of 24 badges present. Missing: badge 5531, last seen Restroom B.", lrn: "Staff go straight to the restroom to find the one missing person." },
+        occ: { sys: "{room} confirmed empty at 11:21.", lrn: "Nothing." },
+        face: { sys: "Shelter entry: 21 faces matched, 3 unmatched (low light, hoods).", lrn: "Three people get stopped at the shelter door to confirm who they are." },
+        lights: { sys: "Emergency lighting on; blinds closed.", lrn: "The lights change and the blinds drop." },
+        mic: { sys: "Shelter instructions announced.", lrn: "The speaker tells you where to go." },
+        hr: { sys: "Heart rates up across all wearers. Logged.", lrn: "Nothing." }
+      } },
+    { id: "visitor", label: "Unexpected visitor", time: [9, 47],
+      desc: "A guest speaker shows up early. They aren't on any roster.",
+      r: {
+        face: { sys: "Unregistered face. Watchlist check returned a possible match, confidence 0.61. Security alerted.", lrn: "Security stops your guest speaker in the hallway. It was a false match." },
+        rfid: { sys: "Head count 25, badges 24. One unbadged person in {room}.", lrn: "The facilitator gets a ping asking who's in the room." },
+        occ: { sys: "Count 25 versus roster 24. Mismatch flagged.", lrn: "Nothing." },
+        lock: { sys: "Entry refused without a badge; front desk buzzed visitor in. Entry logged.", lrn: "The guest waits outside until someone lets them in." },
+        mic: { sys: "Unrecognized voice. No action.", lrn: "Nothing." },
+        eye: { sys: "New face in view; no profile. Excluded from engagement scores.", lrn: "Nothing." }
+      } }
+  ];
+
+  var state = { space: "onboard", installed: {}, gov: {}, ran: {}, lastEvent: null, reflect: "", example: false };
+  var KEY = "ssb-state-v1";
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) { var s = JSON.parse(raw); if (s && s.space) { state = Object.assign(state, s); return true; } }
+    } catch (e) {}
+    return false;
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  function space() { return SPACES.find(function (s) { return s.id === state.space; }); }
+  function dev(id) { return DEVICES.find(function (d) { return d.id === id; }); }
+  function fill(t) { var s = space(); return t.replace(/\{who\}/g, s.who).replace(/\{room\}/g, s.room); }
+  function gov(id) { if (!state.gov[id]) state.gov[id] = Object.assign({}, GOV_DEFAULT); return state.gov[id]; }
+  function govWeight(field, val) { var o = GOV[field].opts.find(function (x) { return x[0] === val; }); return o ? o[2] : 1; }
+  function govShort(field, val) { var o = GOV[field].opts.find(function (x) { return x[0] === val; }); return o ? o[3] : val; }
+  function govLabel(field, val) { var o = GOV[field].opts.find(function (x) { return x[0] === val; }); return o ? o[1] : val; }
+  function installedList() { return DEVICES.filter(function (d) { return state.installed[d.id]; }); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function scores() {
+    var v = 0, i = 0;
+    installedList().forEach(function (d) {
+      var fit = FIT[state.space][d.id];
+      var factor = 1;
+      if (d.personal) {
+        var g = gov(d.id);
+        if (d.needsId && g.ident === "agg") fit *= 0.4;
+        if (g.consent === "optin") fit *= 0.85;
+        var m = (govWeight("ident", g.ident) + govWeight("consent", g.consent) + govWeight("keep", g.keep) + govWeight("access", g.access)) / 4;
+        factor = 0.35 + 0.65 * m;
+      }
+      v += fit; i += d.sens * factor;
+    });
+    return { v: Math.round(100 * (1 - Math.exp(-v / 8))), i: Math.round(100 * (1 - Math.exp(-i / 10))) };
+  }
+  function quadrant(sc) {
+    if (!installedList().length) return null;
+    if (sc.v >= 50 && sc.i < 50) return "Useful and respectful";
+    if (sc.v >= 50) return "Powerful and invasive";
+    if (sc.i >= 50) return "Surveillance, little payoff";
+    return "Low stakes, low payoff";
+  }
+
+  /* ---------- Render: spaces ---------- */
+  function renderSpaces() {
+    var el = document.getElementById("spaces");
+    el.innerHTML = SPACES.map(function (s) {
+      return '<div class="space"><input type="radio" name="space" id="sp-' + s.id + '" value="' + s.id + '"' + (s.id === state.space ? " checked" : "") + '>' +
+        '<label for="sp-' + s.id + '"><span class="room">' + esc(s.room) + '</span><h3>' + esc(s.name) + '</h3><span class="goal">' + esc(s.goal) + '</span></label></div>';
+    }).join("");
+    el.querySelectorAll("input").forEach(function (inp) {
+      inp.addEventListener("change", function () { state.space = inp.value; state.ran = {}; state.lastEvent = null; update(true); });
+    });
+  }
+
+  /* ---------- Render: devices ---------- */
+  function renderDevices() {
+    var el = document.getElementById("devices");
+    el.innerHTML = DEVICES.map(function (d) {
+      var govHtml = "";
+      if (d.personal) {
+        govHtml = '<div class="gov" id="gov-' + d.id + '" hidden>' + Object.keys(GOV).map(function (f) {
+          return '<label for="g-' + d.id + '-' + f + '">' + GOV[f].label + '<select id="g-' + d.id + '-' + f + '" data-dev="' + d.id + '" data-f="' + f + '">' +
+            GOV[f].opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join("") + '</select></label>';
+        }).join("") + '</div>';
+      } else {
+        govHtml = '<p class="nopd" id="gov-' + d.id + '" hidden>Collects no personal data. No rules needed.</p>';
+      }
+      return '<div class="dev' + (d.sens >= 4 ? " hi" : "") + '" id="dev-' + d.id + '">' +
+        '<button class="dev-toggle" type="button" id="tg-' + d.id + '" data-dev="' + d.id + '" aria-pressed="false" aria-label="Install ' + esc(d.name) + '">' + d.code + '</button>' +
+        '<div class="dev-top"><h3>' + esc(d.name) + '</h3><span class="chip">' + esc(d.cat) + '</span><span class="fit" id="fit-' + d.id + '"></span></div>' +
+        '<p class="dev-line"><strong class="s">Senses</strong> ' + esc(d.senses) + '</p>' +
+        '<p class="dev-line"><strong class="a">Does</strong> ' + esc(d.does) + '</p>' + govHtml + '</div>';
+    }).join("");
+    el.querySelectorAll(".dev-toggle").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var id = b.dataset.dev; state.installed[id] = !state.installed[id];
+        if (state.example) { state.example = false; }
+        update();
+      });
+    });
+    el.querySelectorAll("select").forEach(function (s) {
+      s.addEventListener("change", function () { gov(s.dataset.dev)[s.dataset.f] = s.value; update(); });
+    });
+  }
+
+  /* ---------- Render: floor plan ---------- */
+  function renderPlanBase() {
+    var g = document.getElementById("planBase");
+    var svg = "";
+    // walls with door gap on the bottom wall (x 40-92)
+    svg += '<path class="wall" d="M40 270 L20 270 L20 18 L404 18 L404 270 L92 270"></path>';
+    svg += '<path class="thin" d="M40 270 A52 52 0 0 1 92 218"></path><line class="thin" x1="40" y1="270" x2="40" y2="218"></line>';
+    // windows on right wall
+    svg += '<line class="thin" x1="408" y1="70" x2="408" y2="130"></line><line class="thin" x1="408" y1="160" x2="408" y2="220"></line>';
+    // front display
+    svg += '<rect class="furn" x="160" y="22" width="100" height="8"></rect><text class="lbl" x="210" y="44" text-anchor="middle">DISPLAY</text>';
+    // tables
+    [[80, 124], [240, 124], [80, 190], [240, 190]].forEach(function (p) {
+      svg += '<rect class="furn" x="' + p[0] + '" y="' + p[1] + '" width="104" height="22" rx="2"></rect>';
+      for (var k = 0; k < 4; k++) svg += '<circle class="furn" cx="' + (p[0] + 16 + k * 24) + '" cy="' + (p[1] + 32) + '" r="5"></circle>';
+    });
+    svg += '<text class="lbl" x="70" y="258" text-anchor="middle">DOOR</text>';
+    g.innerHTML = svg;
+  }
+  function renderPlanDevices(fired) {
+    var g = document.getElementById("planDevices");
+    var list = installedList();
+    g.innerHTML = list.map(function (d) {
+      var cls = (d.sens >= 4 ? "hi " : "") + (fired && fired[d.id] ? "fired" : "");
+      return '<g class="' + cls + '" transform="translate(' + d.x + ' ' + d.y + ')"><title>' + esc(d.name) + '</title>' +
+        '<circle class="pulse" r="12"></circle><circle class="node" r="12"></circle><text class="code">' + d.code + '</text></g>';
+    }).join("");
+    document.getElementById("planEmpty").hidden = list.length > 0;
+  }
+
+  /* ---------- Render: events ---------- */
+  function renderEvents() {
+    var el = document.getElementById("events");
+    el.innerHTML = EVENTS.map(function (e) {
+      return '<button class="ev-btn" type="button" id="ev-' + e.id + '" data-ev="' + e.id + '" aria-pressed="false">' + e.label + '<span class="ck" id="ck-' + e.id + '"></span></button>';
+    }).join("");
+    el.querySelectorAll(".ev-btn").forEach(function (b) {
+      b.addEventListener("click", function () { runEvent(b.dataset.ev); });
+    });
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function runEvent(id, silent) {
+    var e = EVENTS.find(function (x) { return x.id === id; });
+    if (!e) return;
+    state.lastEvent = id; state.ran[id] = true;
+    document.getElementById("evDesc").innerHTML = "<b>" + esc(e.label) + ".</b> " + esc(fill(e.desc));
+    var log = [], felt = [], fired = {};
+    var sec = 0;
+    installedList().forEach(function (d) {
+      var r = e.r[d.id];
+      if (!r) return;
+      var sys = fill(r.sys), lrn = fill(r.lrn), note = "";
+      if (d.personal) {
+        var g = gov(d.id);
+        if (d.needsId && g.ident === "agg") {
+          sys = "Reading added to the room-level total. No individual record, so no individual action.";
+          lrn = "Nothing happens to you specifically.";
+        }
+        var bits = [];
+        if (g.consent === "optin") bits.push("only learners who opted in");
+        else if (g.consent === "optout") bits.push("everyone except those who opted out");
+        bits.push(govShort("access", g.access));
+        bits.push(govShort("keep", g.keep));
+        note = bits.join(" · ");
+      }
+      fired[d.id] = true;
+      var m = e.time[1] + Math.floor(sec / 60), ss = sec % 60;
+      log.push('<div class="row"><span class="t">' + pad(e.time[0]) + ":" + pad(m) + ":" + pad(ss) + '</span><span class="c">' + d.code + '</span><span>' + esc(sys) + '</span>' +
+        (note ? '<span class="who">' + esc(note) + '</span>' : "") + '</div>');
+      felt.push('<div class="item"><small>' + esc(d.name) + '</small>' + esc(lrn) + '</div>');
+      sec += 7 + Math.floor(Math.random() * 9);
+    });
+    var nothing = '<span class="quiet">Nothing in your space detects this moment. Is that a gap, or a choice?</span>';
+    document.getElementById("log").innerHTML = log.length ? log.join("") : nothing;
+    document.getElementById("felt").innerHTML = felt.length ? felt.join("") : '<span class="quiet">Whatever happens, happens the way it would in any room.</span>';
+    renderPlanDevices(fired);
+    EVENTS.forEach(function (x) {
+      var b = document.getElementById("ev-" + x.id);
+      b.setAttribute("aria-pressed", x.id === id ? "true" : "false");
+      document.getElementById("ck-" + x.id).textContent = state.ran[x.id] ? "✓" : "";
+    });
+    if (!silent) { save(); renderSummary(); }
+  }
+
+  /* ---------- Render: cases ---------- */
+  function renderCases() {
+    var ids = installedList().filter(function (d) { return d.caseId; }).map(function (d) { return d.caseId; });
+    document.getElementById("casesSection").hidden = ids.length === 0;
+    document.getElementById("cases").innerHTML = ids.map(function (id) {
+      var c = CASES[id];
+      return '<article class="case"><span class="when">' + esc(c.when) + '</span><h3>' + esc(c.title) + '</h3><p>' + esc(c.body) + '</p>' +
+        '<a href="' + c.src + '" target="_blank" rel="noopener">Source: ' + esc(c.srcName) + '</a></article>';
+    }).join("");
+  }
+
+  /* ---------- Summary ---------- */
+  function summaryText() {
+    var s = space(), sc = scores(), q = quadrant(sc), list = installedList();
+    var lines = [];
+    lines.push("SMART SPACE BUILDER: MY DESIGN");
+    lines.push("Space: " + s.name + " (" + s.room + ")");
+    lines.push("Goal: " + s.goal);
+    lines.push("");
+    lines.push("Devices installed (" + list.length + "):");
+    if (!list.length) lines.push("  none");
+    list.forEach(function (d) {
+      var line = "  - " + d.name + " [fit " + FIT[s.id][d.id] + "/3]";
+      if (d.personal) {
+        var g = gov(d.id);
+        line += ": " + [govShort("ident", g.ident), govShort("consent", g.consent), govShort("keep", g.keep), govShort("access", g.access)].join(", ");
+      } else line += ": no personal data";
+      lines.push(line);
+    });
+    var left = DEVICES.filter(function (d) { return !state.installed[d.id] && FIT[s.id][d.id] >= 2; });
+    if (left.length) lines.push("Good-fit devices I left out: " + left.map(function (d) { return d.name; }).join(", "));
+    lines.push("");
+    lines.push("Learning value: " + sc.v + "/100   Intrusiveness: " + sc.i + "/100" + (q ? "   (" + q + ")" : ""));
+    lines.push("Moments tested: " + Object.keys(state.ran).length + " of " + EVENTS.length);
+    lines.push("");
+    lines.push("Where I drew the line:");
+    lines.push(state.reflect.trim() || "[write your reasoning above before copying]");
+    return lines.join("\n");
+  }
+  function renderSummary() { document.getElementById("summary").textContent = summaryText(); }
+
+  /* ---------- Weights table ---------- */
+  function renderWeights() {
+    var head = "<tr><th>Device</th><th>Sensitivity</th>" + SPACES.map(function (s) { return "<th>" + esc(s.name.split(" ")[0] === "7th-grade" ? "7th grade" : s.name.split(" ")[0]) + " fit</th>"; }).join("") + "</tr>";
+    var rows = DEVICES.map(function (d) {
+      return "<tr><td>" + esc(d.name) + "</td><td>" + d.sens + "</td>" + SPACES.map(function (s) { return "<td>" + FIT[s.id][d.id] + "</td>"; }).join("") + "</tr>";
+    }).join("");
+    document.getElementById("weights").innerHTML = head + rows;
+  }
+
+  /* ---------- Update cycle ---------- */
+  function update(spaceChanged) {
+    var s = space();
+    document.getElementById("planTitle").textContent = s.name;
+    document.getElementById("planRoom").textContent = s.room;
+    DEVICES.forEach(function (d) {
+      var on = !!state.installed[d.id];
+      document.getElementById("dev-" + d.id).classList.toggle("on", on);
+      var tg = document.getElementById("tg-" + d.id);
+      tg.setAttribute("aria-pressed", on ? "true" : "false");
+      tg.setAttribute("aria-label", (on ? "Remove " : "Install ") + d.name);
+      document.getElementById("gov-" + d.id).hidden = !on;
+      var f = FIT[state.space][d.id];
+      document.getElementById("fit-" + d.id).innerHTML = '<b>' + "●".repeat(f) + "○".repeat(3 - f) + '</b> ' + FIT_WORD[f];
+      if (d.personal && on) {
+        var g = gov(d.id);
+        Object.keys(GOV).forEach(function (fld) { document.getElementById("g-" + d.id + "-" + fld).value = g[fld]; });
+      }
+    });
+    var sc = scores();
+    document.getElementById("vScore").textContent = sc.v;
+    document.getElementById("iScore").textContent = sc.i;
+    var x = 40 + sc.v * 2.5, y = 200 - sc.i * 1.92;
+    document.getElementById("dot").style.transform = "translate(" + x + "px, " + y + "px)";
+    var q = quadrant(sc);
+    var vd = document.getElementById("verdict");
+    if (!q) vd.innerHTML = "Install a device to place your design on the chart.";
+    else {
+      var tip = {
+        "Useful and respectful": "The devices serve the goal and the data rules keep the footprint small.",
+        "Powerful and invasive": "It would help learners, and it would also watch them closely. Which device is doing the most watching?",
+        "Surveillance, little payoff": "A lot of watching for not much learning. Check the fit ratings.",
+        "Low stakes, low payoff": "Light touch. Is there a device that would clearly serve the goal?"
+      }[q];
+      vd.innerHTML = "<b>" + q + ".</b> " + tip;
+    }
+    document.getElementById("exampleBanner").hidden = !state.example;
+    renderCases();
+    if (state.lastEvent && !spaceChanged) runEvent(state.lastEvent, true);
+    else {
+      renderPlanDevices(null);
+      if (spaceChanged) {
+        document.getElementById("evDesc").textContent = "";
+        document.getElementById("log").innerHTML = '<span class="quiet">Pick a moment above.</span>';
+        document.getElementById("felt").innerHTML = '<span class="quiet">Pick a moment above.</span>';
+        EVENTS.forEach(function (e) { document.getElementById("ev-" + e.id).setAttribute("aria-pressed", "false"); document.getElementById("ck-" + e.id).textContent = ""; });
+      }
+    }
+    save(); renderSummary();
+  }
+
+  /* ---------- Init ---------- */
+  var restored = load();
+  if (!restored) {
+    state.installed = { co2: true, rfid: true, rsp: true, eye: true };
+    state.example = true;
+    state.lastEvent = "out"; state.ran = { out: true };
+  }
+  renderSpaces(); renderDevices(); renderPlanBase(); renderEvents(); renderWeights();
+  document.getElementById("reflect").value = state.reflect || "";
+  update();
+  if (state.lastEvent) runEvent(state.lastEvent, true);
+
+  document.getElementById("reflect").addEventListener("input", function (e) { state.reflect = e.target.value; save(); renderSummary(); });
+  document.getElementById("clearExample").addEventListener("click", function () {
+    state.installed = {}; state.gov = {}; state.ran = {}; state.lastEvent = null; state.example = false; update(true);
+  });
+  var resetArmed = false;
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    var b = document.getElementById("resetBtn");
+    if (!resetArmed) { resetArmed = true; b.textContent = "Click again to remove all"; setTimeout(function () { resetArmed = false; b.textContent = "Remove all devices"; }, 3000); return; }
+    resetArmed = false; b.textContent = "Remove all devices";
+    state.installed = {}; state.gov = {}; state.ran = {}; state.lastEvent = null; state.example = false; update(true);
+  });
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var txt = summaryText(), st = document.getElementById("copyStatus");
+    function fallback() {
+      var pre = document.getElementById("summary"); var r = document.createRange(); r.selectNodeContents(pre);
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      st.textContent = "Summary selected below. Press Ctrl+C (Cmd+C on Mac) to copy.";
+    }
+    try {
+      navigator.clipboard.writeText(txt).then(function () { st.textContent = "Copied. Paste it into the discussion."; }, fallback);
+    } catch (e) { fallback(); }
+  });
+})();
+</script>
+
+</body>
+</html>
